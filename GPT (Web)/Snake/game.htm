@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+	<head>
+		<title>Snake Game - By Morgan Evans</title>
+		<meta charset="UTF-8" />
+		<script>
+			var vx = -1;
+			var vy = 0;
+			var gs = gb = 20;
+			var links = [];
+			var l = 5;
+			var px = py = gb / 2;
+			for (var i = 0; i < l; i++) links.push({x:px + i,y: py});
+			var ax = ay = 0;
+			updateApple();
+			 
+			function keyPush(evt) {
+				switch (evt.keyCode) {
+					case 37 : vx = (vx == 0) ? -1 : vx; vy = 0; break;
+					case 38 : vx = 0; vy = (vy == 0) ? -1 : vy; break;
+					case 39 : vx = (vx == 0) ? 1 : vx; vy = 0; break;
+					case 40 : vx = 0; vy = (vy == 0) ? 1 : vy; break; 
+				}
+			}
+
+			function shiftLinks() {
+				for (var i = l - 1; i > 0; i--) {
+					links[i].x = links[i - 1].x;
+					links[i].y = links[i - 1].y;
+				}
+				links[0].x = px;
+				links[0].y = py;
+			}
+
+			function updateApple() {
+				do {
+					var hit = false;
+					ax = Math.floor(Math.random() * gb);
+					ay = Math.floor(Math.random() * gb);
+					for (var i = 0; i < l && !hit; i++) {
+						if (ax == links[i].x && ay == links[i].y) hit = true;
+					}
+				} while (hit);
+			}
+
+			function game() {
+				px += vx;
+				py += vy;
+				if (px < 0) px = gs - 1;
+				if (px == gs) px = 0;
+				if (py < 0) py = gs - 1;
+				if (py == gs) py = 0;
+				if (px == ax && py == ay) {
+					links[l] = {x: links[l - 1].x, y: links[l - 1].y};
+					shiftLinks();
+					l++;
+					updateApple();
+				} else {
+					shiftLinks();
+					for (var i = 1; i < l; i++) {
+						if (px == links[i].x && links[0].y == links[i].y) l = 5;
+					}
+				}
+
+				var gc = document.getElementById("gc");
+				var gcc = gc.getContext("2d");
+				gcc.fillStyle = "black";
+				gcc.fillRect(0, 0, gc.width, gc.height);
+				gcc.fillStyle = "green";
+				for (var i = 0; i < l; i++) {
+					gcc.fillRect((links[i].x * gb) + 1, (links[i].y * gb) + 1, gb - 2, gb - 2);
+				}
+				gcc.fillStyle = "red";
+				gcc.fillRect((ax * gb) + 1, (ay * gb) + 1, gb - 2, gb - 2);
+			}
+
+			document.addEventListener("keydown",keyPush);
+			window.setInterval(game, 1000 / 15);
+		</script>
+		<style type="text/css">
+			canvas#gc		{
+				position: absolute;
+				border: 4px solid black;
+				border-radius: 4px;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="gc" width="400" height="400"></canvas>
+	</body>
+</html>
