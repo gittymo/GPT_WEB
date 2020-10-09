@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Life (or Cellular Automata Simulation) - By Morgan Evans</title>
+    <meta charset="UTF-8" />
+    <style type="text/css">
+        canvas.GameCanvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 4px solid grey;
+            border-radius: 4px;
+        }
+    </style>
+    <script>
+        function Canvas(width = 640, height = 480, 
+                        horizontal_spacing = 1, vertical_spacing = 1,
+                        context_type = "2d") {
+            this.canvas = document.createElement("canvas");
+            this.canvas.className = "GameCanvas";
+            this.context = this.canvas.getContext(context_type);
+            this.horizontal_spacing = horizontal_spacing;
+            this.vertical_spacing = vertical_spacing;
+            this.canvas.width = width * horizontal_spacing;
+            this.canvas.height = height * vertical_spacing;
+            
+            document.body.appendChild(this.canvas);
+
+            this.Fill = function(fillStyle) {
+                this.context.fillStyle = fillStyle;
+            }
+
+            this.Stroke = function(strokeStyle) {
+                this.context.strokeStyle = strokeStyle;
+            }
+
+            this.Clear = function(fillStyle = this.context.fillStyle) {
+                var oldFillStyle = this.context.fillStyle;
+                this.context.fillStyle = fillStyle;
+                this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                this.context.fillStyle = oldFillStyle;
+            }
+
+            this.DrawRect = function(left, top, width, height) {
+                this.context.strokeRect (   left * this.horizontal_spacing, 
+                                            top * this.vertical_spacing,
+                                            width * this.horizontal_spacing, 
+                                            height * this.vertical_spacing);
+            }
+
+            this.FillRect = function(left, top, width, height) {
+                this.context.fillRect   (   left * this.horizontal_spacing, 
+                                            top * this.vertical_spacing,
+                                            width * this.horizontal_spacing, 
+                                            height * this.vertical_spacing);
+            }
+
+            this.DrawLine = function(left, top, right, bottom) {
+                this.context.beginPath();
+                this.context.moveTo(left * this.horizontal_spacing,
+                                    top * this.vertical_spacing);
+                this.context.lineTo(right * this.horizontal_spacing,
+                                    bottom * this.vertical_spacing);
+                this.context.stroke();
+            }
+        }
+
+        function CellGrid(  grid_width = 20, grid_height = 20, cell_size = 24, 
+                            cells_to_make = 0)
+        {
+            this.Draw = function() {
+                this.canvas.Clear("black");
+                this.canvas.Fill("white");
+                for (var i = 0; i < this.cells.length; i++) {
+                    if (this.cells[i].IsAlive()) {
+                        this.canvas.FillRect(this.cells[i].x, this.cells[i].y, 1, 1);
+                    }
+                }
+                this.canvas.Stroke("rgb(64,64,64)");
+                for (var x = 0; x < this.width; x += 1) {
+                    this.canvas.DrawLine(x, 0, x, this.height);
+                }
+                for (var y = 0; y < this.height; y += 1) {
+                    this.canvas.DrawLine(0, y, this.width, y);
+                }
+            }
+
+            this.GetNeighbourCount = function(cell) {
+                var cell_index = (this.width * cell.y) + cell.x;
+                var alive_neighbours = 0;
+                if (cell.x > 0 && this.cells[cell_index - 1].IsAlive()) alive_neighbours++;
+                if (cell.x < this.width - 1 &&
+                    this.cells[cell_index + 1].IsAlive()) alive_neighbours++;
+                if (cell.y > 0) {
+                    if (this.cells[cell_index - this.width].IsAlive()) alive_neighbours++;
+                    if (cell.x > 0 && this.cells[cell_index - this.width - 1].IsAlive())
+                        alive_neighbours++;
+                    if (cell.x < this.width - 1 &&
+                        this.cells[cell_index - this.width + 1].IsAlive()) alive_neighbours++;
+                }
+                if (cell.y < this.height - 1) {
+                    if (this.cells[cell_index + this.width].IsAlive()) alive_neighbours++;
+                    if (cell.x > 0 && this.cells[cell_index + this.width - 1].IsAlive())
+                        alive_neighbours++;
+                    if (cell.x < this.width - 1 &&
+                        this.cells[cell_index + this.width + 1].IsAlive()) alive_neighbours++;
+                }
+                return alive_neighbours;
+            }
+
+            this.GetNextGen = function() {
+                var next_gen_cells = [];
+                for (var i = 0; i < this.cells.length; i++) {
+                    next_gen_cells.push(this.cells[i].GetNextGen());
+                }
+                this.cells = next_gen_cells;
+                this.Draw();
+            }
+
+            this.InitCells = function(cells_to_make = 0, grid_width = 10, grid_height = 10) {
+                this.cells = [];
+                this.width = grid_width;
+                this.height = grid_height;
+                this.total_cells = grid_width * grid_height;
+                if (cells_to_make < 3) cells_to_make = Math.floor(this.total_cells / 3);
+
+                for (var y = 0; y < this.height; y++) {
+                    for (var x = 0; x < this.width; x++) {
+                        this.cells.push(new Cell(x, y, this));
+                    }
+                }
+                
+                for (var i = 0; i < cells_to_make; i++) {
+                    var empty_cell_index = 0;
+                    do {
+                        empty_cell_index = Math.floor(Math.random() * this.total_cells);
+                    } while (this.cells[empty_cell_index].IsAlive());
+                    this.cells[empty_cell_index].MakeAlive();
+                }
+            }
+
+            this.InitCells(cells_to_make, grid_width, grid_height);
+            this.canvas = new Canvas(grid_width, grid_height, cell_size, cell_size);
+        }
+
+        function Cell(x = 0, y = 0, parent_grid) {
+            this.x = x;
+            this.y = y;
+            this.alive = false;
+            this.parent_grid = parent_grid;
+            this.generation = 0;
+
+            this.IsAlive = function() {
+                return this.alive;
+            }
+
+            this.MakeAlive = function() {
+                this.alive = true;
+            }
+
+            this.GetNextGen = function() {
+                var neighbours = this.parent_grid.GetNeighbourCount(this);
+                var next_gen_cell = new Cell(this.x, this.y, this.parent_grid);
+                if (this.generation < 30) {
+                    if (neighbours >= 2 && neighbours <= 3 && this.alive) {
+                        next_gen_cell.MakeAlive();
+                        next_gen_cell.generation = this.generation + 1;
+                    } else if (neighbours == 3 && !this.alive) {
+                        next_gen_cell.MakeAlive();
+                    }
+                }
+                return next_gen_cell;
+            }
+        }
+
+        var game_grid = null;
+
+        function UpdateGrid() {
+            game_grid.GetNextGen();
+        }
+
+        function InitGrid() {
+            if (game_grid != null) game_grid.canvas.Clear("white");
+            var grid_width = parseInt(document.getElementById("grid_width").value);
+            var grid_height = parseInt(document.getElementById("grid_height").value);
+            var cell_size = parseInt(document.getElementById("cell_size").value);
+            var cells_percent = parseInt(document.getElementById("cells_percent").value);
+            if (cells_percent < 3) cells_percent = 3;
+            if (cells_percent > 99) cells_percent = 99;
+            var cells_to_make = Math.floor(grid_width * grid_height * (cells_percent / 100.0));
+            game_grid = new CellGrid(grid_width, grid_height, cell_size, cells_to_make);
+            game_grid.Draw();
+        }
+
+        function StartGame() {
+            InitGrid();
+            setInterval(UpdateGrid, 1000/10);
+        }
+
+        function InputChanged(evt) {
+            alert("Hello");
+            InitGrid();
+        }
+    </script>
+</head>
+<body onload="StartGame()">
+    <label for="grid_width">Grid Width:</label>
+    <input id="grid_width" value="40" onchange="InitGrid()" />
+    <label for="grid_width">Grid Height:</label>
+    <input id="grid_height" value="40" onchange="InitGrid()" />
+    <label for="grid_width">Cell Size:</label>
+    <input id="cell_size" value="10" onchange="InitGrid()" />
+    <label for="grid_width">Live %:</label>
+    <input id="cells_percent" value="33" onchange="InitGrid()" />
+</body>
+</html>

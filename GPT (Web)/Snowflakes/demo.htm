@@ -20,9 +20,10 @@
 			var wind = null;
 			var background = new Image();
 
+      var frames_per_second = 50;
 			var max_fall_speed = 1;
 			var max_wind_speed = 8;
-			var flakes_to_make = 2500;
+			var flakes_to_make = 750;
 			background.src = "city.jpeg";
 
 			function StartDemo() {
@@ -34,7 +35,7 @@
 					flake.MakeFlake(dc.width, dc.height);
 					flakes.push(flake);
 				}
-				window.setInterval(DrawScene, 1000/25);
+				window.setInterval(DrawScene, 1000/frames_per_second);
 			}
 
 			function Wind(max_speed) {
@@ -42,12 +43,16 @@
 					this.speed = -max_speed + Math.round(Math.random() * (max_speed * 2));
 					this.start_ticks = Math.round(Math.random() * 300);
 					this.blow_ticks = 100 * Math.round(Math.random() * 10);
-					
+					this.start_blow = true;
 				} 
 
 				this.Tick = function() {
 					if (this.start_ticks > 0) this.start_ticks--;
 					else {
+						if (this.start_blow) {
+							for (var i = 0; i < flakes_to_make; i++) flakes[i].SetTargetSwirlSpeed(this.speed);
+							this.start_blow = false;
+						}
 						if (this.blow_ticks > 0) {
 							for (var i = 0; i < flakes_to_make; i++) flakes[i].Blow(this.speed);
 							this.blow_ticks--;
@@ -64,39 +69,53 @@
 				this.MakeFlake = function(width, height) {
 					this.x = Math.floor(Math.random() * width); 
 					this.y = -32 + (height > 0 ? Math.floor(Math.random() * (height + 32)) : 0);
-					this.size = Math.floor(Math.random() * 4);
+					this.size = Math.round(Math.random() * 4);
 					this.x_speed = 0;
-					this.y_speed = max_fall_speed;
+					this.y_speed = max_fall_speed; 
+					this.max_fall_speed = this.y_speed + (this.size / 4.0);
 					this.swirl_speed = 0;
 					this.swirl_angle = Math.floor(Math.random() * 360);
 					this.swirl_radius = 2 * Math.round(Math.random() * 4);
+					this.SetTargetSwirlSpeed(wind.speed);
 				}
 
 				this.Draw = function() {
 					var rad_angle = this.swirl_angle / deg2rad;
 					var swirl_x = this.x + (this.swirl_radius * Math.cos(rad_angle)) + (this.swirl_radius * Math.sin(rad_angle));
 					var swirl_y = this.y - (this.swirl_radius * Math.sin(rad_angle)) + (this.swirl_radius * Math.cos(rad_angle));
-					dcc.fillRect(swirl_x, swirl_y, this.size, this.size);
+					dcc.fillRect(swirl_x, swirl_y, this.size + 1, this.size + 1);
+				}
+
+				this.SetTargetSwirlSpeed = function(speed) {
+					this.target_swirl_speed = Math.random() * (speed * 4) / this.size;
 				}
 
 				this.Move = function() {
 					this.y += this.y_speed;
 					this.x += this.x_speed;
-					if (this.y_speed < max_fall_speed) this.y_speed += 0.01;
+					if (this.y_speed < this.max_fall_speed) this.y_speed += 0.01;
 					if (this.x_speed != 0) this.x_speed = this.x_speed * (1 - (0.01 * this.size));
 					if (this.x < 0) this.x = dc.width;
 					if (this.x > dc.width) this.x = 0;
 					if (this.y > dc.height) this.MakeFlake(dc.width, 0);
-					this.swirl_speed = this.swirl_speed * 0.95;
+					this.swirl_speed = this.swirl_speed * 0.995;
 					this.swirl_angle += (wind.speed < 0) ? -this.swirl_speed : this.swirl_speed;
 					if (this.swirl_angle < 0) this.swirl_angle = 360 + this.swirl_angle;
 					if (this.swirl_angle > 360) this.swirl_angle = this.swirl_angle - 360;
 				}
 
 				this.Blow = function(speed = 0) {
-					if (speed != 0) this.x_speed += speed > 0 ? this.x_speed < speed ? 0.25 : 0 : this.x_speed > speed ? -0.25 : 0;
-					if ((speed < 0 && this.x_speed <= speed) || (speed > 0 && this.x_speed >= speed)) {
-						this.swirl_speed = wind.speed != 0 ? Math.round(Math.random() * Math.abs(wind.speed)) * 3 : this.swirl_speed;
+					if (speed != 0) {
+						this.x_speed += speed > 0 ? this.x_speed < speed ? 0.25 : 0 : this.x_speed > speed ? -0.25 : 0;
+						if (this.target_swirl_speed != 0 && this.swirl_speed != this.target_swirl_speed) {
+							if (this.target_swirl_speed > 0) {
+								if (this.swirl_speed < this.target_swirl_speed) this.swirl_speed += 0.25;
+								else this.swirl_speed = this.target_swirl_speed;
+							} else {
+								if (this.swirl_speed > this.target_swirl_speed) this.swirl_speed -= 0.25;
+								else this.swirl_speed = this.target_swirl_speed;
+							}
+						}
 					}
 				}
 			}
